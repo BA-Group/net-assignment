@@ -21,7 +21,7 @@ namespace net_assignment.Models
             using (var c = new SqliteConnection(_connStr))
             {
                 c.Open();
-                return c.QuerySingleOrDefault<Contact>("SELECT * FROM Contact WHERE ID=@ID", new { ID = id });
+                return c.QuerySingleOrDefault<Contact>("SELECT * FROM Contact WHERE Id=@Id", new { Id = id });
             }
         }
         public int Update(Contact contact)

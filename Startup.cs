@@ -34,7 +34,7 @@ namespace net_assignment
                 opts.ConnectionString = "Data Source=" + dbFile;
             });
 
-            services.AddTransient<IRepository<Contact, long>, ContactRepository>();
+            services.AddSingleton<IRepository<Contact, long>, ContactRepository>();
         }
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
@@ -44,7 +44,7 @@ namespace net_assignment
                 {
                     c.Open();
                     var i = c.Execute(@"CREATE TABLE Contact(
-                        ID          integer primary key AUTOINCREMENT,
+                        Id          integer primary key AUTOINCREMENT,
                         FirstName   text not null,
                         LastName    text not null,
                         Email       text not null,
@@ -52,9 +52,10 @@ namespace net_assignment
                         City        text
 
                     )");
-                    System.Console.WriteLine("DB file location: " + dbFile);
+                    System.Console.WriteLine("New DB created");
                 }
             }
+            System.Console.WriteLine("DB file location: " + dbFile);
 
             loggerFactory.AddConsole();
             app.UseMvc();
