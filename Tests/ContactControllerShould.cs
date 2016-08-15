@@ -23,7 +23,7 @@ namespace net_assignment.Tests
             Server = new TestServer(new WebHostBuilder()
                 .UseStartup<Startup>());
             Client = Server.CreateClient();
-            Url = "/contact";
+            Url = "/contacts";
             Contact =  new Contact()
                 {
                 FirstName = "Guest",
