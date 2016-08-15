@@ -11,45 +11,54 @@ using net_assignment.Models;
 
 namespace net_assignment.Tests
 {
-    public class ContactControllerShould
+    // Shared context, ugly perhaps?
+    public class ContactFixture
     {
-        private readonly TestServer _server;
-        private readonly HttpClient _client;
-        private readonly string _url = "/contacts";
-
-        private Contact _contact = new Contact()
+        public TestServer Server { get; private set;}
+        public HttpClient Client { get; private set;}
+        public string Url { get; private set;}
+        public Contact Contact { get; set;}
+        public ContactFixture()
         {
-            FirstName = "Guest",
-            LastName = "User",
-            Email = "guest@localhost.test"
-        };
-
-        public ContactControllerShould()
-        {
-            _server = new TestServer(new WebHostBuilder()
+            Server = new TestServer(new WebHostBuilder()
                 .UseStartup<Startup>());
-            _client = _server.CreateClient();
+            Client = Server.CreateClient();
+            Url = "/contact";
+            Contact =  new Contact()
+                {
+                FirstName = "Guest",
+                LastName = "User",
+                Email = "guest@localhost.test"
+            };
+        }
+    }
+    public class ContactControllerShould: IClassFixture<ContactFixture>
+    {
+        private readonly ContactFixture _fix;
+        public ContactControllerShould(ContactFixture fix)
+        {
+          _fix = fix;
         }
         [Fact]
         public async Task Return404IfContactNotFoundTest()
         {
-            var res = await _client.GetAsync(_url + "/-1");
+            var res = await _fix.Client.GetAsync(_fix.Url + "/-1");
             Assert.Equal("NotFound", res.StatusCode.ToString());
         }
         [Fact]
         public async Task ReturnOkIDWhenCreatedContactTest()
         {
-            var res = await _client.PostAsync(_url, new StringContent(JsonConvert.SerializeObject(_contact),
+            var res = await _fix.Client.PostAsync(_fix.Url, new StringContent(JsonConvert.SerializeObject(_fix.Contact),
                 Encoding.UTF8, "application/json"));
             Assert.Equal("Created", res.StatusCode.ToString());
             var id = long.Parse(await res.Content.ReadAsStringAsync());
             Assert.True(id > 0);
-            _contact.Id = id;
+            _fix.Contact.Id = id;
         }
         [Fact]
         public async Task Return400IfBadDataWhenCreatingContactTest()
         {
-            var res = await _client.PostAsync(_url, new StringContent(JsonConvert.SerializeObject(new Contact()
+            var res = await _fix.Client.PostAsync(_fix.Url, new StringContent(JsonConvert.SerializeObject(new Contact()
             {
                 FirstName = "Not"
             }), Encoding.UTF8, "application/json"));
@@ -58,16 +67,16 @@ namespace net_assignment.Tests
         [Fact]
         public async Task ReturnOkContactWhenFetchingAllTest()
         {
-            var res = await _client.GetAsync(_url);
+            var res = await _fix.Client.GetAsync(_fix.Url);
             Assert.Equal("Ok", res.StatusCode.ToString());
             var contacts = JsonConvert.DeserializeObject<List<Contact>>(await res.Content.ReadAsStringAsync());
-            Assert.True(contacts.Contains(_contact));
+            Assert.True(contacts.Contains(_fix.Contact));
         }
         [Fact]
         public async Task ReturnOkRowsAffectedWhenUpdatingTest()
         {
-            _contact.City = "Turku";
-            var res = await _client.PutAsync(_url + "/" + _contact.Id, new StringContent(JsonConvert.SerializeObject(_contact),
+            _fix.Contact.City = "Turku";
+            var res = await _fix.Client.PutAsync(_fix.Url + "/" + _fix.Contact.Id, new StringContent(JsonConvert.SerializeObject(_fix.Contact),
                 Encoding.UTF8, "application/json"));
             Assert.Equal("Ok", res.StatusCode.ToString());
             var rows = int.Parse(await res.Content.ReadAsStringAsync());
@@ -76,15 +85,15 @@ namespace net_assignment.Tests
         [Fact]
         public async Task ReturnOkContactWhenFetchingByIdTest()
         {
-            var res = await _client.GetAsync(_url + "/" + _contact.Id);
+            var res = await _fix.Client.GetAsync(_fix.Url + "/" + _fix.Contact.Id);
             Assert.Equal("Ok", res.StatusCode.ToString());
             var jsString = await res.Content.ReadAsStringAsync();
-            Assert.Equal(JsonConvert.SerializeObject(_contact), jsString);
+            Assert.Equal(JsonConvert.SerializeObject(_fix.Contact), jsString);
         }
         [Fact]
         public async Task ReturnOkRowsAffectedWhenDeletingContactTest()
         {
-            var res = await _client.DeleteAsync(_url + "/" + _contact.Id);
+            var res = await _fix.Client.DeleteAsync(_fix.Url + "/" + _fix.Contact.Id);
             Assert.Equal("Ok", res.StatusCode.ToString());
             var rows = int.Parse(await res.Content.ReadAsStringAsync());
             Assert.True(rows > 0);
