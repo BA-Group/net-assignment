@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Text;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Xunit;
@@ -18,6 +19,7 @@ namespace net_assignment.Tests
         public TestServer Server { get; private set; }
         public HttpClient Client { get; private set; }
         public string Url { get; private set; }
+        private JsonSerializerSettings _settings;
         public Contact Contact { get; set; }
         public ContactFixture()
         {
@@ -31,26 +33,24 @@ namespace net_assignment.Tests
                 LastName = "User",
                 Email = "guest@localhost.test"
             };
+            _settings = new JsonSerializerSettings
+            {
+                ContractResolver = new CamelCasePropertyNamesContractResolver(),
+                NullValueHandling = NullValueHandling.Ignore
+            };
+        }
+
+        public string ToJson(object value)
+        {
+             return JsonConvert.SerializeObject(value, _settings);
+        }
+        public T FromJson<T>(string value)
+        {
+            return JsonConvert.DeserializeObject<T>(value, _settings);
         }
     }
     public class ContactControllerShould : IClassFixture<ContactFixture>
     {
-        public static string ToJson(object value)
-        {
-            var settings = new JsonSerializerSettings
-            {
-                ContractResolver = new CamelCasePropertyNamesContractResolver()
-            };
-            return JsonConvert.SerializeObject(value);
-        }
-        private static T FromJson<T>(string value)
-        {
-            var settings = new JsonSerializerSettings
-            {
-                ContractResolver = new CamelCasePropertyNamesContractResolver()
-            };
-            return JsonConvert.DeserializeObject<T>(value);
-        }
         private readonly ContactFixture _fix;
         public ContactControllerShould(ContactFixture fix)
         {
@@ -65,7 +65,7 @@ namespace net_assignment.Tests
         [Fact]
         public async Task ReturnOkIDWhenCreatedContactTest()
         {
-            var res = await _fix.Client.PostAsync(_fix.Url, new StringContent(ToJson(_fix.Contact),
+            var res = await _fix.Client.PostAsync(_fix.Url, new StringContent(_fix.ToJson(_fix.Contact),
                 Encoding.UTF8, "application/json"));
             Assert.Equal("Created", res.StatusCode.ToString());
             var id = long.Parse(await res.Content.ReadAsStringAsync());
@@ -75,7 +75,7 @@ namespace net_assignment.Tests
         [Fact]
         public async Task Return400IfBadDataWhenCreatingContactTest()
         {
-            var res = await _fix.Client.PostAsync(_fix.Url, new StringContent(ToJson(new Contact()
+            var res = await _fix.Client.PostAsync(_fix.Url, new StringContent(_fix.ToJson(new Contact()
             {
                 FirstName = "Not"
             }), Encoding.UTF8, "application/json"));
@@ -86,15 +86,15 @@ namespace net_assignment.Tests
         {
             var res = await _fix.Client.GetAsync(_fix.Url);
             Assert.Equal("OK", res.StatusCode.ToString());
-            var contacts = FromJson<List<Contact>>(await res.Content.ReadAsStringAsync());
-            Assert.True(contacts.Contains(_fix.Contact));
+            var contacts = _fix.FromJson<List<Contact>>(await res.Content.ReadAsStringAsync());
+            Assert.True(contacts.Any(c => c.Id == _fix.Contact.Id));
         }
         [Fact]
         public async Task ReturnOkRowsAffectedWhenUpdatingTest()
         {
             _fix.Contact.City = "Turku";
-            var res = await _fix.Client.PutAsync(_fix.Url + "/" + _fix.Contact.Id, new StringContent(ToJson(_fix.Contact),
-                Encoding.UTF8, "application/json"));
+            var res = await _fix.Client.PutAsync(_fix.Url + "/" + _fix.Contact.Id, 
+                new StringContent(_fix.ToJson(_fix.Contact), Encoding.UTF8, "application/json"));
             Assert.Equal("OK", res.StatusCode.ToString());
             var rows = int.Parse(await res.Content.ReadAsStringAsync());
             Assert.True(rows > 0);
@@ -105,7 +105,7 @@ namespace net_assignment.Tests
             var res = await _fix.Client.GetAsync(_fix.Url + "/" + _fix.Contact.Id);
             Assert.Equal("OK", res.StatusCode.ToString());
             var jsString = await res.Content.ReadAsStringAsync();
-            Assert.Equal(ToJson(_fix.Contact), jsString);
+            Assert.Equal(_fix.ToJson(_fix.Contact), jsString);
         }
         [Fact]
         public async Task ReturnOkRowsAffectedWhenDeletingContactTest()
